@@ -1,5 +1,7 @@
+from datetime import datetime
 import logging
 
+from help_request import HelpRequest
 from dotenv import load_dotenv
 from livekit.agents import (
     Agent,
@@ -16,6 +18,7 @@ from livekit.agents import (
 from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from livekit.agents import function_tool, RunContext
+from Session import SalonSessionInfo
 
 logger = logging.getLogger("agent")
 
@@ -25,23 +28,42 @@ load_dotenv(".env")
 class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
-            instructions="""
-            You are Mia, a friendly AI salon assistant for 'Luna Glow Salon'.
-            The salon offers haircuts, coloring, styling, manicures, pedicures, and skincare treatments.
-            You can answer questions about services, prices, hours, and bookings.
-            If you don’t know an answer, politely say you’ll check with the front desk.
-            Keep your tone warm, professional, and enthusiastic—like a real receptionist.
-            Your responses are concise and natural, since the user is speaking to you.
-            """
+            instructions = """
+                You are Mia, a friendly, professional AI receptionist for Luna Glow Salon.
+                You speak naturally and warmly, like a real front desk assistant.
+
+                Your main goals:
+                1. Greet clients and help them with bookings, service details, and pricing.
+                2. Answer questions about salon hours, stylists, treatments, and appointments.
+                3. If someone requests to speak to the owner, say you’ll note their message and pass it to the owner.
+                4. If a question is outside your knowledge (e.g., “Do you offer laser hair removal?”), politely say you'll check with the front desk, then call the `handle_unknown()` tool.
+                5. Always stay friendly and positive — even if the client is frustrated or unclear.
+                6. Avoid technical talk. Keep responses short and natural, since users are speaking aloud.
+                7. If a user gives a name, service, or time preference, acknowledge it politely and confirm details.
+
+                Example style:
+                - “Hi! This is Mia at Luna Glow Salon. How can I make your day a little brighter?”
+                - “Let me double-check that with the front desk, one moment please.”
+                - “I’ll pass your request to the owner and make sure they get back to you soon.”
+
+                Never mention being an AI or a virtual system — just act like the salon’s receptionist.
+                """
+
         )
         
     async def handle_unknown(self, context: RunContext, user_query: str):
         """Triggered when the AI doesn't know the answer."""
         logger.warning(f"Requesting help for query: {user_query}")
-        # Simulate triggering a "help" event — for now, just print/log
-        print(f"HELP REQUEST TRIGGERED for query: {user_query}")
-        return "I'm not sure about that. Let me check with a colleague and get back to you."
+        
+        help_req = HelpRequest(query=user_query)
+        help_req.save()
 
+        print(f"[SUPERVISOR ALERT] New help request: {user_query}")
+        
+        context.userdata.last_query = user_query
+        context.userdata.escalated = True
+
+        return "Let me check with my supervisor and get back to you."
 
     # To add tools, use the @function_tool decorator.
     # Here's an example that adds a simple weather tool.
@@ -99,7 +121,8 @@ async def entrypoint(ctx: JobContext):
     }
 
     # Set up a voice AI pipeline using OpenAI, Cartesia, AssemblyAI, and the LiveKit turn detector
-    session = AgentSession(
+    session = AgentSession[SalonSessionInfo](
+        userdata=SalonSessionInfo(),
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
         # See all available models at https://docs.livekit.io/agents/models/stt/
         stt=inference.STT(model="assemblyai/universal-streaming", language="en"),
