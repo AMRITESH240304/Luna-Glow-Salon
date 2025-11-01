@@ -17,6 +17,7 @@ struct SupervisorModel: Codable, Identifiable {
     let source: String
     let status: String
     let timestamp: String
+    let timeout_at: String
 }
 
 struct SupervisorResponseModel: Codable {

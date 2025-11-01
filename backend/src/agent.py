@@ -19,6 +19,7 @@ from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 from livekit.agents import function_tool, RunContext
 from Session import SalonSessionInfo
+from firebase_admin import firestore
 
 import threading
 import asyncio
@@ -34,20 +35,20 @@ class Assistant(Agent):
     def __init__(self) -> None:
         super().__init__(
             instructions = """
-                You are Mia, a friendly, professional AI receptionist for Luna Glow Salon.
+                You are Amritesh, a friendly, professional AI receptionist for Luna Glow Salon.
                 You speak naturally and warmly, like a real front desk assistant.
 
                 Your main goals:
                 1. Greet clients and help them with bookings, service details, and pricing.
                 2. Answer questions about salon hours, stylists, treatments, and appointments.
                 3. If someone requests to speak to the owner, say you’ll note their message and pass it to the owner.
-                4. If a question is outside your knowledge (e.g., “Do you offer laser hair removal?”), politely say you'll check with the front desk, then call the `handle_unknown()` tool.
+                4. If a question is outside your knowledge (e.g., “?”), politely say you'll check with the front desk, then call the `handle_unknown()` tool.
                 5. Always stay friendly and positive — even if the client is frustrated or unclear.
                 6. Avoid technical talk. Keep responses short and natural, since users are speaking aloud.
                 7. If a user gives a name, service, or time preference, acknowledge it politely and confirm details.
 
                 Example style:
-                - “Hi! This is Mia at Luna Glow Salon. How can I make your day a little brighter?”
+                - “Hi! This is Amritesh at Luna Glow Salon. How can I make your day a little brighter?”
                 - “Let me double-check that with the front desk, one moment please.”
                 - “I’ll pass your request to the owner and make sure they get back to you soon.”
 
@@ -63,10 +64,11 @@ class Assistant(Agent):
         print(f"[SUPERVISOR ALERT] Participant SID: {context.userdata.participant_sid}")
 
         help_req = HelpRequest(query=user_query, user_id=context.userdata.participant_sid, user_name=context.userdata.user_name)
-        help_req.save()
 
-        print(f"[SUPERVISOR ALERT] New help request: {user_query}")
+        doc_id = help_req.save()
+        print(f"[SUPERVISOR ALERT] New help request: {user_query} (id={doc_id})")
         
+        asyncio.create_task(self._watch_timeout(doc_id))
         context.userdata.last_query = user_query
         context.userdata.escalated = True
 
@@ -111,13 +113,30 @@ class Assistant(Agent):
         logger.info(f"Looking up weather for {location}")
     
         return "sunny with a temperature of 70 degrees."
+    
+    async def _watch_timeout(self, request_id: str):
+        """Runs 1-minute timeout check for unresolved requests."""
+        await asyncio.sleep(60)  
+
+        request_ref = db.collection("help_requests").document(request_id)
+        snapshot = request_ref.get()
+        if not snapshot.exists:
+            return 
+
+        data = snapshot.to_dict()
+        if data.get("status") == "pending":
+            print(f"[TIMEOUT] Moving {request_id} to history as unresolved")
+            data["status"] = "unresolved"
+            data["resolved_at"] = firestore.SERVER_TIMESTAMP
+            data["response_message"] = "Supervisor did not respond in time."
+
+            db.collection("history").document(request_id).set(data)
+            request_ref.delete()
 
 
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
     
-
-
 def listen_for_supervisor_responses(session: AgentSession, message_queue: Queue):
     """Firestore watcher that pushes messages into a thread-safe queue."""
     def on_snapshot(col_snapshot, changes, read_time):
@@ -177,7 +196,7 @@ async def entrypoint(ctx: JobContext):
     )
     
     await session.generate_reply(
-        instructions="Greet the user as a salon receptionist named Mia and ask how you can assist them with their beauty appointment."
+        instructions="Greet the user as a salon receptionist named Amritesh and ask how you can assist them with their beauty appointment."
     )
 
     await ctx.connect()
