@@ -12,6 +12,8 @@ db = firestore.client()
 @dataclass
 class HelpRequest:
     query: str
+    user_id: str
+    user_name: str | None = None
     status: str = "pending"
     assigned_to: str = "supervisor_1"
     source: str = "LiveKitCall"
@@ -20,14 +22,4 @@ class HelpRequest:
     def save(self):
         """Save this HelpRequest to Firestore."""
         db.collection("help_requests").add(asdict(self))
-
-    @staticmethod
-    def list_pending():
-        """Return all pending help requests."""
-        docs = db.collection("help_requests").where("status", "==", "pending").stream()
-        return [doc.to_dict() for doc in docs]
-
-    @staticmethod
-    def update_status(doc_id: str, new_status: str):
-        """Update the status of an existing help request."""
-        db.collection("help_requests").document(doc_id).update({"status": new_status})
+        

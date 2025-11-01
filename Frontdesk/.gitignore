@@ -1,0 +1,178 @@
+# Xcode
+.DS_Store
+*.pbxuser
+*.mode1v3
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+*.moved-aside
+DerivedData/
+.build/
+*.xcodeproj/project.xcworkspace/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+!*.xcodeproj/project.pbxproj
+!*.xcworkspace/contents.xcworkspacedata
+!*.xcodeproj/xcshareddata/
+!*.xcworkspace/xcshareddata/
+*.playground/xcuserdata/
+
+# Swift Package Manager
+.swiftpm/
+Packages/
+Package.resolved
+
+# Build products
+Build/
+build/
+*.o
+*.d
+*.lo
+*.la
+*.so
+*.dylib
+*.a
+*.bak
+*.link
+*.pyc
+*.swp
+*.swo
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# Carthage
+Carthage/Build/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# Code Injection
+iOSInjectionProject/
+
+# Other
+*.log
+*.hmap
+*.ipa
+*.app
+*.dSYM
+*.xcarchive
+*.zip
+*.tar
+*.tgz
+*.dmg
+*.pkg
+*.xctest
+*.profraw
+*.profdata
+*.coverage
+*.gcno
+*.gcda
+*.gcov
+*.lcov
+*.memcheck
+*.stackdump
+*.crash
+*.lock
+*.keychain
+*.mobileprovision
+*.pem
+*.p12
+*.cer
+*.csr
+*.crt
+*.der
+*.pub
+*.sig
+*.secrets
+*.env
+.env
+.DS_Store# Xcode
+
+## Build generated
+build/
+DerivedData/
+
+## Various settings
+ExportOptions.plist
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+
+## Other
+*.moved-aside
+*.xccheckout
+*.xcscmblueprint
+
+## We don't want any memgrap's to leak ;)
+**.memgraph
+
+## Obj-C/Swift specific
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+## Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager
+#
+# Add this line if you want to avoid checking in source code from Swift Package Manager dependencies.
+# Packages/
+# Package.pins
+# Package.resolved
+.build/
+
+# CocoaPods
+#
+# We recommend against adding the Pods directory to your .gitignore. However
+# you should judge for yourself, the pros and cons are mentioned at:
+# https://guides.cocoapods.org/using/using-cocoapods.html#should-i-check-the-pods-directory-into-source-control
+#
+# Pods/
+#
+# Add this line if you want to avoid checking in source code from the Xcode workspace
+# *.xcworkspace
+
+# Carthage
+#
+# Add this line if you want to avoid checking in source code from Carthage dependencies.
+# Carthage/Checkouts
+
+Carthage/Build
+
+# Accio dependency management
+Dependencies/
+.accio/
+
+# fastlane
+#
+# It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the
+# screenshots whenever they are needed.
+# For more information about the recommended setup visit:
+# https://docs.fastlane.tools/best-practices/source-control/#source-control
+
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+fastlane/*.env
+
+# Code Injection
+#
+# After new code Injection tools there's a generated folder /iOSInjectionProject
+# https://github.com/johnno1962/injectionforxcode
+
+iOSInjectionProject/
