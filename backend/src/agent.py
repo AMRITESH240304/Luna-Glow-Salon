@@ -1,5 +1,6 @@
 from datetime import datetime
 import logging
+from knowledge_base import KnowledgeBase
 
 from help_request import HelpRequest
 from dotenv import load_dotenv
@@ -27,6 +28,8 @@ from help_request import db
 from queue import Queue
 
 logger = logging.getLogger("agent")
+logging.getLogger("pymongo.topology").setLevel(logging.WARNING)
+kb = KnowledgeBase()
 
 load_dotenv(".env")
 
@@ -56,6 +59,7 @@ class Assistant(Agent):
                 """
 
         )
+        self.knowledge_base = KnowledgeBase()
 
     async def handle_unknown(self, context: RunContext[SalonSessionInfo], user_query: str):
         """Triggered when the AI doesn't know the answer. Escalates to a human supervisor. or any other action."""
@@ -76,6 +80,10 @@ class Assistant(Agent):
     
     @function_tool
     async def salon_info(self, context: RunContext, question: str):
+        kb_answer = await self.knowledge_base.find_best_answer(question)
+        if kb_answer:
+            return kb_answer
+
         known_topics = ["hours", "price", "services", "location", "booking"]
         if any(word in question.lower() for word in known_topics):
             return "Luna Glow Salon is open 9am to 7pm, Monday through Saturday."
@@ -99,20 +107,6 @@ class Assistant(Agent):
             return f"The price for a {service} is {price}."
         else:
             return f"Sorry, I couldn’t find the price for {service}. Please ask the front desk."
-
-    @function_tool
-    async def lookup_weather(self, context: RunContext, location: str):
-        """Use this tool to look up current weather information in the given location.
-    
-        If the location is not supported by the weather service, the tool will indicate this. You must tell the user the location's weather is unavailable.
-    
-        Args:
-            location: The location to look up weather information for (e.g. city name)
-        """
-    
-        logger.info(f"Looking up weather for {location}")
-    
-        return "sunny with a temperature of 70 degrees."
     
     async def _watch_timeout(self, request_id: str):
         """Runs 1-minute timeout check for unresolved requests."""
@@ -145,9 +139,11 @@ def listen_for_supervisor_responses(session: AgentSession, message_queue: Queue)
                 doc = change.document.to_dict()
                 user_id = doc.get("user_id")
                 message = doc.get("response_message")
+                question = doc.get("query")
 
-                if user_id == session.userdata.participant_sid and message:
+                if user_id == session.userdata.participant_sid and message and question:
                     print(f"[SUPERVISOR RESPONSE] {message}")
+                    asyncio.run(kb.add_entry(question, message))
                     message_queue.put(message)
 
     query = (

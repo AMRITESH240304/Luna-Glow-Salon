@@ -10,8 +10,10 @@ requires-python = ">=3.9"
 
 dependencies = [
     "firebase-admin>=7.1.0",
+    "google-generativeai>=0.8.5",
     "livekit-agents[silero,turn-detector]~=1.2",
     "livekit-plugins-noise-cancellation~=0.2",
+    "pymongo>=4.15.3",
     "python-dotenv",
 ]
 
