@@ -23,6 +23,12 @@ struct ContentView: View {
                         Label("History", systemImage: "clock.arrow.circlepath")
                             .tag(1)
                     }
+                
+                KnowledgeBaseView()
+                    .tabItem {
+                        Label("Knowledge Base", systemImage: "book.closed")
+                            .tag(2)
+                    }
             }
         }
     }

@@ -65,7 +65,19 @@ class KnowledgeBase:
         except Exception as e:
             print(f"[KnowledgeBase] Failed to add entry: {e}")
             return None
-        
+
+    async def find_all_answers(self, question: str):
+        """
+        Find all answers to a question.
+        """
+        results = await self.search(question, top_k=5)
+        if not results:
+            return []
+        # make object and reutrn list of answers and questions
+        answers = [res.get("answer") for res in results]
+        questions = [res.get("question") for res in results]
+        return {"answers": answers, "questions": questions}
+
     async def find_best_answer(self, question: str, threshold: float = 0.8):
         """
         Find the best-matching answer to a question if it's semantically close enough.

@@ -21,7 +21,7 @@ struct SupervisorView: View {
                     .padding(.top)
 
                 List(viewModel.supervisors.supervisors) { item in
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack() {
                         HStack {
                             VStack(alignment: .leading) {
                                 Text(item.user_name).font(.headline)
@@ -44,7 +44,7 @@ struct SupervisorView: View {
                         }
 
                         if expandedRequestID == item.id {
-                            VStack(alignment: .leading, spacing: 6) {
+                            VStack() {
                                 TextField("Type your response...", text: Binding(
                                     get: { responseMessages[item.id ?? ""] ?? "" },
                                     set: { responseMessages[item.id ?? ""] = $0 }

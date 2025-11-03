@@ -29,10 +29,9 @@ class HistoryViewModel: ObservableObject {
 
             self.allHistory = items
             applyFilter()
-            print("✅ Loaded \(items.count) history entries")
 
         } catch {
-            print("❌ Error fetching history: \(error.localizedDescription)")
+            print("Error fetching history: \(error.localizedDescription)")
         }
     }
 

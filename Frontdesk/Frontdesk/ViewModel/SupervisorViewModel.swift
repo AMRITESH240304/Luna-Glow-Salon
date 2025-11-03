@@ -38,22 +38,32 @@ class SupervisorViewModel: ObservableObject {
                 let snapshot = try await requestRef.getDocument()
                 
                 guard var data = snapshot.data() else {
-                    print("❌ Document not found for ID: \(requestID)")
+                    print("Document not found for ID: \(requestID)")
                     return
                 }
                 
-                // Add response info and status
                 data["status"] = newStatus
                 data["response_message"] = message
                 data["resolved_at"] = Timestamp(date: Date())
                 
-                // Move to 'history' collection
                 try await db.collection("history").document(requestID).setData(data)
                 
-                // Remove from active help_requests
+                if let query = data["query"] as? String {
+                    let knowledgeBaseRef = db.collection("knowledge_base").document(requestID)
+                    let knowledgeData: [String: Any] = [
+                        "query": query,
+                        "answer": message,
+                        "created_at": Timestamp(date: Date()),
+                        "source": data["source"] ?? "unknown",
+                        "resolved_by": data["assigned_to"] ?? "system"
+                    ]
+                    
+                    try await knowledgeBaseRef.setData(knowledgeData, merge: true)
+                }
+                
                 try await requestRef.delete()
                 
-                print("✅ Moved request \(requestID) to history collection.")
+                print("Moved request \(requestID) to history collection.")
                 
                 // Optionally, refresh the UI
                 await fetchPendingRequests()

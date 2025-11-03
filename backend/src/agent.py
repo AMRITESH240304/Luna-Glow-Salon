@@ -1,8 +1,8 @@
 from datetime import datetime
 import logging
+from unittest import result
 from knowledge_base import KnowledgeBase
 
-from help_request import HelpRequest
 from dotenv import load_dotenv
 from livekit.agents import (
     Agent,
@@ -18,9 +18,11 @@ from livekit.agents import (
 )
 from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
-from livekit.agents import function_tool, RunContext
+from livekit.agents import function_tool, RunContext, ChatContext, ChatMessage
 from Session import SalonSessionInfo
 from firebase_admin import firestore
+from prompts import INSTRUCTIONS
+from tools import handle_unknown, salon_info, lookup_service_price
 
 import threading
 import asyncio
@@ -35,98 +37,13 @@ load_dotenv(".env")
 
 
 class Assistant(Agent):
-    def __init__(self) -> None:
+    def __init__(self, chat_ctx: ChatContext) -> None:
         super().__init__(
-            instructions = """
-                You are Amritesh, a friendly, professional AI receptionist for Luna Glow Salon.
-                You speak naturally and warmly, like a real front desk assistant.
-
-                Your main goals:
-                1. Greet clients and help them with bookings, service details, and pricing.
-                2. Answer questions about salon hours, stylists, treatments, and appointments.
-                3. If someone requests to speak to the owner, say you’ll note their message and pass it to the owner.
-                4. If a question is outside your knowledge (e.g., “?”), politely say you'll check with the front desk, then call the `handle_unknown()` tool.
-                5. Always stay friendly and positive — even if the client is frustrated or unclear.
-                6. Avoid technical talk. Keep responses short and natural, since users are speaking aloud.
-                7. If a user gives a name, service, or time preference, acknowledge it politely and confirm details.
-
-                Example style:
-                - “Hi! This is Amritesh at Luna Glow Salon. How can I make your day a little brighter?”
-                - “Let me double-check that with the front desk, one moment please.”
-                - “I’ll pass your request to the owner and make sure they get back to you soon.”
-
-                Never mention being an AI or a virtual system — just act like the salon’s receptionist.
-                """
-
+            chat_ctx=chat_ctx,
+            instructions=INSTRUCTIONS,
         )
-        self.knowledge_base = KnowledgeBase()
 
-    async def handle_unknown(self, context: RunContext[SalonSessionInfo], user_query: str):
-        """Triggered when the AI doesn't know the answer. Escalates to a human supervisor. or any other action."""
-        logger.warning(f"Requesting help for query: {user_query}")
-        print(f"[SUPERVISOR ALERT] User '{context.userdata.user_name}' needs help with: {user_query}")
-        print(f"[SUPERVISOR ALERT] Participant SID: {context.userdata.participant_sid}")
-
-        help_req = HelpRequest(query=user_query, user_id=context.userdata.participant_sid, user_name=context.userdata.user_name)
-
-        doc_id = help_req.save()
-        print(f"[SUPERVISOR ALERT] New help request: {user_query} (id={doc_id})")
-        
-        asyncio.create_task(self._watch_timeout(doc_id))
-        context.userdata.last_query = user_query
-        context.userdata.escalated = True
-
-        return "Let me check with my supervisor and get back to you."
-    
-    @function_tool
-    async def salon_info(self, context: RunContext, question: str):
-        kb_answer = await self.knowledge_base.find_best_answer(question)
-        if kb_answer:
-            return kb_answer
-
-        known_topics = ["hours", "price", "services", "location", "booking"]
-        if any(word in question.lower() for word in known_topics):
-            return "Luna Glow Salon is open 9am to 7pm, Monday through Saturday."
-        else:
-            return await self.handle_unknown(context, question)
-
-    
-    @function_tool
-    async def lookup_service_price(self, context: RunContext[SalonSessionInfo], service: str):
-        """Check the price of a salon service."""
-        print(f"User data: {context.userdata}")
-        prices = {
-            "haircut": "$40",
-            "coloring": "$80",
-            "manicure": "$25",
-            "pedicure": "$35",
-            "facial": "$60",
-        }
-        price = prices.get(service.lower())
-        if price:
-            return f"The price for a {service} is {price}."
-        else:
-            return f"Sorry, I couldn’t find the price for {service}. Please ask the front desk."
-    
-    async def _watch_timeout(self, request_id: str):
-        """Runs 1-minute timeout check for unresolved requests."""
-        await asyncio.sleep(60)  
-
-        request_ref = db.collection("help_requests").document(request_id)
-        snapshot = request_ref.get()
-        if not snapshot.exists:
-            return 
-
-        data = snapshot.to_dict()
-        if data.get("status") == "pending":
-            print(f"[TIMEOUT] Moving {request_id} to history as unresolved")
-            data["status"] = "unresolved"
-            data["resolved_at"] = firestore.SERVER_TIMESTAMP
-            data["response_message"] = "Supervisor did not respond in time."
-
-            db.collection("history").document(request_id).set(data)
-            request_ref.delete()
-
+    tools = [lookup_service_price, salon_info, handle_unknown]
 
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
@@ -171,7 +88,9 @@ async def entrypoint(ctx: JobContext):
     )
     
     usage_collector = metrics.UsageCollector()
-
+    initial_ctx = ChatContext()
+    
+    initial_ctx.add_message(role="assistant", content=f"The user's name is Ankur.")
     @session.on("metrics_collected")
     def _on_metrics_collected(ev: MetricsCollectedEvent):
         metrics.log_metrics(ev.metrics)
@@ -184,7 +103,7 @@ async def entrypoint(ctx: JobContext):
     ctx.add_shutdown_callback(log_usage)
 
     await session.start(
-        agent=Assistant(),
+        agent=Assistant(chat_ctx=initial_ctx),
         room=ctx.room,
         room_input_options=RoomInputOptions(
             noise_cancellation=noise_cancellation.BVC(),
@@ -192,7 +111,7 @@ async def entrypoint(ctx: JobContext):
     )
     
     await session.generate_reply(
-        instructions="Greet the user as a salon receptionist named Amritesh and ask how you can assist them with their beauty appointment."
+        instructions="Greet the user as a salon receptionist named Amritesh and also user name ask how you can assist them with their beauty appointment."
     )
 
     await ctx.connect()
@@ -205,7 +124,6 @@ async def entrypoint(ctx: JobContext):
 
     async def supervisor_message_consumer():
         while True:
-            # wait for message from thread
             message = await asyncio.get_event_loop().run_in_executor(None, message_queue.get)
             if message:
                 await session.generate_reply(

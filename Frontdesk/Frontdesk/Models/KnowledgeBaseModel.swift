@@ -6,3 +6,17 @@
 //
 
 import Foundation
+import FirebaseFirestore
+
+struct KnowledgeBaseModel: Codable, Identifiable {
+    @DocumentID var id: String?
+    let query: String
+    let answer: String
+    let source: String?
+    let resolved_by: String?
+    let created_at: Timestamp?
+}
+
+struct KnowledgeBaseResponseModel: Codable {
+    let entries: [KnowledgeBaseModel]
+}
