@@ -100,6 +100,21 @@ The background services make the system **reactive** and fully **asynchronous**.
 4. **MongoDB Vector DB** → Stores the new Q&A pair as long-term knowledge.  
 5. **Timeout Watcher** → Moves any unanswered queries to the **"unresolved"** state in Firestore.
 
+## Scope of Improvement
+
+### Multi-Agent Hierarchy
+Currently, a single agent manages all three tools:
+- `lookup_service_price`
+- `salon_info`
+- `handle_unknown`
+
+### Threading Bottleneck
+Each user session currently spawns a dedicated thread to listen for supervisor responses through Firestore snapshots.
+
+- Replace Firestore `on_snapshot` (thread-based) with **Google Pub/Sub** event-driven notifications.
+- Run a single event loop to handle async updates using `asyncio.create_task()`.
+
+
 ## Frontend to handle Supervisor
 ![alt text](image-3.png)
 
