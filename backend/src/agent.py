@@ -127,7 +127,7 @@ async def entrypoint(ctx: JobContext):
             message = await asyncio.get_event_loop().run_in_executor(None, message_queue.get)
             if message:
                 await session.generate_reply(
-                    instructions=f"Say this supervisor response naturally: '{message}'"
+                    instructions=f"Say this supervisor response yes this reponse you dont have to introduce again: '{message}'"
                 )
     
     threading.Thread(
