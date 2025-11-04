@@ -51,17 +51,21 @@ def prewarm(proc: JobProcess):
 def listen_for_supervisor_responses(session: AgentSession, message_queue: Queue):
     """Firestore watcher that pushes messages into a thread-safe queue."""
     def on_snapshot(col_snapshot, changes, read_time):
-        for change in changes:
-            if change.type.name == "ADDED":
-                doc = change.document.to_dict()
-                user_id = doc.get("user_id")
-                message = doc.get("response_message")
-                question = doc.get("query")
+        try: 
+            for change in changes:
+                if change.type.name == "ADDED":
+                    doc = change.document.to_dict()
+                    user_id = doc.get("user_id")
+                    message = doc.get("response_message")
+                    question = doc.get("query")
 
-                if user_id == session.userdata.participant_sid and message and question:
-                    print(f"[SUPERVISOR RESPONSE] {message}")
-                    asyncio.run(kb.add_entry(question, message))
-                    message_queue.put(message)
+                    if user_id == session.userdata.participant_sid and message and question:
+                        print(f"[SUPERVISOR RESPONSE] {message}")
+                        asyncio.run(kb.add_entry(question, message))
+                        message_queue.put(message)
+        except Exception as e:
+            print(f"[SUPERVISOR LISTENER ERROR] {e}")
+            message_queue.put(None)
 
     query = (
         db.collection("history")
@@ -123,12 +127,16 @@ async def entrypoint(ctx: JobContext):
     message_queue = Queue()
 
     async def supervisor_message_consumer():
-        while True:
-            message = await asyncio.get_event_loop().run_in_executor(None, message_queue.get)
-            if message:
-                await session.generate_reply(
-                    instructions=f"Say this supervisor response yes this reponse you dont have to introduce again: '{message}'"
-                )
+        try:
+            while True:
+                message = await asyncio.get_event_loop().run_in_executor(None, message_queue.get)
+                if message:
+                    await session.generate_reply(
+                        instructions=f"Say this supervisor response yes this reponse you dont have to introduce again: '{message}'"
+                    )
+        except asyncio.CancelledError:
+            print("[SUPERVISOR CONSUMER] Shutting down supervisor message consumer.")
+            message_queue.put(None)
     
     threading.Thread(
         target=listen_for_supervisor_responses,

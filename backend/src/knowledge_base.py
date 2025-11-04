@@ -70,24 +70,32 @@ class KnowledgeBase:
         """
         Find all answers to a question.
         """
-        results = await self.search(question, top_k=5)
-        if not results:
+        try:
+            results = await self.search(question, top_k=5)
+            if not results:
+                return []
+            # make object and reutrn list of answers and questions
+            answers = [res.get("answer") for res in results]
+            questions = [res.get("question") for res in results]
+            return {"answers": answers, "questions": questions}
+        
+        except Exception as e:
+            print(f"[KnowledgeBase] Error finding answers: {e}")
             return []
-        # make object and reutrn list of answers and questions
-        answers = [res.get("answer") for res in results]
-        questions = [res.get("question") for res in results]
-        return {"answers": answers, "questions": questions}
 
-    async def find_best_answer(self, question: str, threshold: float = 0.8):
+    async def find_best_answer(self, question: str):
         """
-        Find the best-matching answer to a question if it's semantically close enough.
-        (You can enhance this by comparing cosine scores if MongoDB returns them.)
+        Find the best-matching answer to a question
         """
-        results = await self.search(question, top_k=1)
-        if not results:
+        try:
+            results = await self.search(question, top_k=1)
+            if not results:
+                return None
+
+            best = results[0]
+            answer = best.get("answer")
+            return answer
+        except Exception as e:
+            print(f"[KnowledgeBase] Error finding best answer: {e}")
             return None
-
-        best = results[0]
-        answer = best.get("answer")
-        return answer
     
