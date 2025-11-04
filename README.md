@@ -100,6 +100,7 @@ The background services make the system **reactive** and fully **asynchronous**.
 5. **Timeout Watcher** → Moves any unanswered queries to the **"unresolved"** state in Firestore.
 
 ## Frontend to handle Supervisor
+![alt text](image-3.png)
 
 ![alt text](image-1.png)
 
