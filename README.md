@@ -1,6 +1,6 @@
 # Luna Glow Salon the AI Receptionist
 
-### Built by [Amritesh Kumar](https://github.com/AmriteshKumar)
+### Built by [Amritesh Kumar]()
 ### [Video Link](https://drive.google.com/file/d/1_99YnxIzwBsrd0pzsEaDy64tJArlkKHx/view?usp=sharing)
 
 ---
